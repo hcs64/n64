@@ -1,18 +1,16 @@
 .set noreorder
 .text
+  .globl poll_controller
   .globl read_controller
 
-read_controller:
+poll_controller:
   lui   $2, 0xa480
 
-/*
-DANGER!
 busy1:
   lw    $3, 0x18($2)
   andi  $3, 3
   bnez  $3, busy1
   nop
-  */
 
   la    $3, controller_command-0x80000000
   sw    $3, 0($2)
@@ -20,6 +18,12 @@ busy1:
   sw    $3, 0x10($2)
   
   nop
+
+  jr    $31
+  nop
+
+read_controller:
+  lui   $2, 0xa480
 
 busy2:
   lw    $3, 0x18($2)

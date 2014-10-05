@@ -6,7 +6,23 @@
 // framebuffer setup
 
 _start:
+  la  $11, message
+  jal console_write_string
+  nop
 
+.data
+message2:
+  .string "Hello, world again!!"
+.text
+  la  $11, message2
+  jal console_write_string
+  nop
+
+  la $11, 0xdeadbeef
+  jal console_write_32
+  nop
+
+//// main loop
 refresh:
   li $4, 0
   jal read_controller
@@ -24,7 +40,7 @@ red:
   jal doubleify
   nop
 
-  li $7, 0
+  li $7, 10
 repeat_it:
   
   la $3, framebuffer
@@ -78,66 +94,29 @@ pos_y:
   jal   text_blit
   nop
 
-  /*
-  li    $10, 8
-  move  $11, $31
-  li    $12, 100
-  li    $13, 108
-  jal   text_blit
-  nop
-  */
 
-  la  $11, message
-  jal console_write_string
+    jal console_render
   nop
 
-.data
-message2:
-  .string "Hello, world again!!"
-.text
-  la  $11, message2
-  jal console_write_string
+  jal poll_controller
   nop
 
-  la $11, 0xdeadbeef
-  jal console_write_32
-  nop
-
-  la $2, 1
-count_loop:
-  move $11, $2
-  jal console_write_16
-  nop
-
-  jal console_render
-  nop
-
-  li $3, 10000000
-waitloop:
-  bnez $3, waitloop
-  addiu $3, -1
-
-  b count_loop
-  addiu $2, 1
-
-  la  $11, message
-  li  $12, 32
-  li  $13, 120
-  jal   text_blit
-  nop
-
-
-deadloop:
-  j deadloop
-  nop
-
+mfc0 $12, $9
   // wait for vblank
-  li    $3, 0x202
+  li    $3, 200 //0x202
   lui   $4, 0xa440
 vblank_loop:
   lw    $5, 0x10($4)
   nop
   bne   $5, $3, vblank_loop
+  nop
+
+  mfc0  $11, $9
+  move  $14, $11
+  jal console_write_32
+  nop
+  subu  $11, $14, $12
+  jal console_write_32
   nop
 
   b refresh
