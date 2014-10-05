@@ -27,10 +27,10 @@ font.o: font.raw
 	$(CHKSUM64) $@
 
 %.bin: %.elf
-	$(OBJCOPY) -O binary --gap-fill 0xaa $< $@
+	$(OBJCOPY) -O binary $< $@
 
 %.o: %.asm
-	$(AS) $< -o $@
+	cpp < $< | $(AS) -o $@
 
 clean:
 	rm -f $(OBJECTS) test.bin test.elf

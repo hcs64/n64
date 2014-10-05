@@ -5,13 +5,14 @@
 .set width, 320
   .globl text_blit
 
+/*
+ $10 length if numeric, 0 if string
+ $11 number if numeric, else pointer to null terminated string
+ $12 x
+ $13 y
+*/
 
-# $10 length if numeric, 0 if string
-# $11 number if numeric, else pointer to null terminated string
-# $12 x
-# $13 y
-
-# inputs and $2 through $8 are clobbered
+//inputs and $2 through $8 are clobbered
 text_blit:
   beqz  $10, text_string
   nop
@@ -44,25 +45,25 @@ text_string:
   mflo  $13
   addu  $13, $12
   sll   $13, 1
-  la    $2, fb
-  addu  $13, $2     # $13 is current framebuffer address
+  la    $2, framebuffer
+  addu  $13, $2     // $13 is current framebuffer address
 
-  li    $12, 0xfffe # $12 is text color
-  la    $2, _binary_font_raw_start  # $2 is font bitmap
+  li    $12, 0xfffe // $12 is text color
+  la    $2, _binary_font_raw_start  // $2 is font bitmap
 
 
 charloop:
-  move  $8, $13  # $14 is the current pixel of the character
+  move  $8, $13  // $14 is the current pixel of the character
 
   lbu   $10, 0($11)
   beqz  $10, end_charloop
-  li    $3, 8-1   # 8 lines
+  li    $3, 8-1   // 8 lines
 
   sll   $4, $10, 3
   addu  $4, $2
 lineloop:
-  lbu   $5, 0($4) # line bitmap
-  li    $6, 8-1   # 8 pixels
+  lbu   $5, 0($4) // line bitmap
+  li    $6, 8-1   // 8 pixels
 
 pixloop:
   andi  $7, $5, 0x80

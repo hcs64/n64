@@ -2,17 +2,10 @@
 .text
 
   .globl _start
-  .globl fb
 
-# framebuffer setup
-.set fb, 0xa0200000
+// framebuffer setup
 
 _start:
-  lui $2, 0xa440
-  la  $3, fb
-  sw  $3, 4($2)
-
-  li $10, 1
 
 refresh:
   li $4, 0
@@ -20,20 +13,21 @@ refresh:
   nop
   move $18, $4
 
-  la $6, red_4_times
+  li $6, 0xf800
   srl $4, 16
   bne $4, $0, red
   nop
 
-  la $6, green_4_times
+  li $6, 0x07c0
  
 red:
-  ld $6, ($6)
+  jal doubleify
+  nop
 
   li $7, 0
 repeat_it:
   
-  la $3, fb
+  la $3, framebuffer
   li $4, 240-1
 yloop:
   li $5, 320-4
@@ -86,7 +80,7 @@ pos_y:
   jal   text_blit
   nop
 
-  # wait for vblank
+  // wait for vblank
   li    $3, 0x202
   lui   $4, 0xa440
 vblank_loop:
@@ -137,7 +131,7 @@ busy3:
   bnez  $3, busy3
   nop
 
-  la    $3, controller_response-0x80000000+0xa0000000
+  la    $3, controller_response
   lbu   $5, 3($3)
   sll   $4, $5, 24
   lhu   $5, 4($3)
@@ -146,6 +140,14 @@ busy3:
   lbu   $5, 6($3)
   or    $4, $5
 
+  jr    $31
+  nop
+
+doubleify:
+  dsll  $2, $6, 16
+  or    $2, $6
+  dsll32 $3, $2, 0
+  or    $6, $2, $3
   jr    $31
   nop
 
@@ -171,15 +173,12 @@ controller_command:
   /* command ready */
   .byte 1
 
+.section .nocachebss
   .p2align 6
 controller_response:
   .skip 64
 
+.data
+
 message:
   .string "Hello, world!"
-
-  .p2align 3
-red_4_times:
-  .word 0xf800f800,0xf800f800
-green_4_times:
-  .word 0x07c007c0,0x07c007c0
