@@ -401,7 +401,7 @@ text_string:
   mflo  fb
   addu  fb, xpos  // no more use of xpos ($12)
   sll   fb, 1
-  la    tmp, framebuffer
+  lw    tmp, active_framebuffer
   addu  fb, tmp
 
   .set bmp, $12

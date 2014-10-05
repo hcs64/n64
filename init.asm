@@ -6,6 +6,9 @@
 
   // PI init
 _init:
+  jal setup_exception_handlers
+  nop
+
   lui $2, 0xbfc0
   lw  $3, 0x07fc($2)
   nop
@@ -13,23 +16,31 @@ _init:
   sw  $3, 0x07fc($2)
   nop
 
-  // disable interrupts
-  mfc0  $2, $12
-  addiu $3, $0, 0xfffe
-  and   $2, $3
-  mtc0  $2, $12
-
   // stack
   la  $29, _stack
 
-  // setup framebuffer
+  // setup VI
   lui $2, 0xa440
+
+  // framebuffer control
   la  $3, 0x00013002
   sw  $3, 0($2)
-  la  $3, framebuffer
+
+  // framebuffer address
+  la  $3, framebuffer0
   sw  $3, 4($2)
+  la  $3, framebuffer1
+  sw  $3, active_framebuffer
+
+  // framebuffer width (pixels)
   li  $3, 320
   sw  $3, 8($2)
+
+  // vertical interrupt on line 0
+  sw  $0, 12($2)
+
+  // current line (clear interrupt)
+  sw  $0, 16($2)
   
   // video timing
   la  $3, 0x03e52239
@@ -66,6 +77,7 @@ _init:
   li  $3, 0x400
   sw  $3, 52($2)
 
+
   j _start
   nop
 
@@ -73,9 +85,15 @@ _init:
   .p2align 8
 _stack: .skip 1024
 
+  .globl active_framebuffer
+active_framebuffer:
+  .skip 4
+
 .section .nocachebss, "", @nobits
   .p2align 16
-  .globl framebuffer
-framebuffer: .skip 320*240*2
+  .globl framebuffer0
+framebuffer0: .skip 320*240*2
+  .globl framebuffer1
+framebuffer1: .skip 320*240*2
   .p2align
 

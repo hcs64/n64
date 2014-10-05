@@ -3,8 +3,6 @@
 
   .globl _start
 
-// framebuffer setup
-
 _start:
   la  $11, message
   jal console_write_string
@@ -29,21 +27,22 @@ refresh:
   nop
   move $18, $4
 
-  li $6, 0xf800
+  li $6, 0x07c0
   srl $4, 16
-  bne $4, $0, red
+  beq $4, $0, green
   nop
 
-  li $6, 0x07c0
+  li $6, 0xf800
+  //div $6, $0
  
-red:
+green:
   jal doubleify
   nop
 
-  li $7, 10
+  li $7, 0
 repeat_it:
   
-  la $3, framebuffer
+  lw $3, active_framebuffer
   li $4, 240-1
 yloop:
   li $5, 320-4
@@ -95,29 +94,45 @@ pos_y:
   nop
 
 
-    jal console_render
+  jal console_render
   nop
+
+  lw  $2, active_framebuffer
+  sw  $2, ready_framebuffer
 
   jal poll_controller
   nop
 
-mfc0 $12, $9
-  // wait for vblank
-  li    $3, 200 //0x202
-  lui   $4, 0xa440
-vblank_loop:
-  lw    $5, 0x10($4)
+  mfc0  $11, $9
+  jal console_write_32
   nop
-  bne   $5, $3, vblank_loop
+  lw    $11, frame_count
+  jal console_write_16
   nop
 
-  mfc0  $11, $9
-  move  $14, $11
-  jal console_write_32
+  lw $11, my_frame_count
+  addiu $11, 1
+  sw  $11, my_frame_count
+  jal console_write_16
   nop
-  subu  $11, $14, $12
-  jal console_write_32
+
+.data
+my_frame_count:
+  .word 0
+.text
+
+  //li  $2, 1
+  //div $2, $0
+
+
+  // wait for that frame to be displayed
+ready_wait:
+  lw    $2, ready_framebuffer
+  bnez  $2, ready_wait
   nop
+
+  lw    $2, available_framebuffer
+  sw    $2, active_framebuffer
 
   b refresh
   nop
