@@ -50,8 +50,8 @@ xloop:
   la    $11, message
   andi  $12, $18, 0xff00
   srl   $12, 8
-.data
 
+.data
 message:
   .string "Hello, world!!"
 .text
@@ -83,6 +83,26 @@ pos_y:
   li    $12, 100
   li    $13, 108
   jal   text_blit
+  nop
+
+  la  $11, message
+  jal console_write_string
+  nop
+.data
+message2:
+  .string "Hello, world again!!"
+.text
+
+  la  $11, message2
+  jal console_write_string
+  nop
+
+  la $11, 0xdeadbeef
+  jal console_write_32
+  nop
+
+deadloop:
+  j deadloop
   nop
 
   // wait for vblank
