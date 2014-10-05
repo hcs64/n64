@@ -78,21 +78,23 @@ pos_y:
   jal   text_blit
   nop
 
+  /*
   li    $10, 8
   move  $11, $31
   li    $12, 100
   li    $13, 108
   jal   text_blit
   nop
+  */
 
   la  $11, message
   jal console_write_string
   nop
+
 .data
 message2:
   .string "Hello, world again!!"
 .text
-
   la  $11, message2
   jal console_write_string
   nop
@@ -100,6 +102,30 @@ message2:
   la $11, 0xdeadbeef
   jal console_write_32
   nop
+
+  la $2, 1
+count_loop:
+  move $11, $2
+  jal console_write_16
+  nop
+
+  jal console_render
+  nop
+
+  li $3, 10000000
+waitloop:
+  bnez $3, waitloop
+  addiu $3, -1
+
+  b count_loop
+  addiu $2, 1
+
+  la  $11, message
+  li  $12, 32
+  li  $13, 120
+  jal   text_blit
+  nop
+
 
 deadloop:
   j deadloop

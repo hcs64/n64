@@ -1,21 +1,36 @@
 .set noreorder
 
-.text
-
 .set width, 320
 .set height, 240
 
 .set console_x, 32
 .set console_width, (width-console_x)/8
 .set console_y, 32
-.set console_height, (height-console_y)/8
+.set console_max_y, 200
+.set console_height, (console_max_y-console_y)/8
+
+.data
+console_inited:
+  .byte 0
+
+  .align 4
+console_row:
+  .word 0
+
+.bss
+console_buffer:
+  .skip (console_width+1)*console_height
+
+.text
+
+// *** init_console
 
   .globl init_console
 init_console:
   sd  $2, 8*0($29)
   sd  $3, 8*1($29)
 
-  la    $2, console_buffer+console_width
+  la    $2, console_buffer
   li    $3, console_height
 
 console_init_loop:
@@ -35,6 +50,8 @@ console_init_loop:
   jr  $31
   nop
 
+// *** console_write_string
+
   .globl console_write_string
 console_write_string:
   /* $11: string ptr */
@@ -52,6 +69,8 @@ console_write_string:
 
   jr  $31
   nop
+
+// *** console_write_64
 
   .globl console_write_64
 console_write_64:
@@ -71,6 +90,8 @@ console_write_64:
   jr  $31
   nop
 
+// *** console_write_32
+
   .globl console_write_32
 console_write_32:
   /* $11: string ptr */
@@ -88,6 +109,8 @@ console_write_32:
 
   jr  $31
   nop
+
+// *** console_write_16
 
   .globl console_write_16
 console_write_16:
@@ -107,6 +130,8 @@ console_write_16:
   jr  $31
   nop
 
+// *** console_write_8
+
   .globl console_write_8
 console_write_8:
   /* $11: string ptr */
@@ -125,77 +150,229 @@ console_write_8:
   jr  $31
   nop
 
-  .globl console_write
+
+// *** console_write
+
 console_write:
   /*
     $10: 0 (string), n (number digits)
     $11: message/number
   */
 
-  sd  $12, 0*8($29)
-  sd  $13, 1*8($29)
-  sd  $31, 2*8($29)
-  addiu $29, 3*8
+  .set digitlen, $10
+  .set message, $11
 
-  lbu $12, console_inited
+  sd  $2, 0*8($29)
+  sd  $3, 1*8($29)
+  sd  $4, 2*8($29)
+  sd  $12, 3*8($29)
+  sd  $13, 4*8($29)
+  mflo $2
+  sd  $2, 5*8($29)
+  mfhi $2
+  sd  $2, 6*8($29)
+  sd  $31, 7*8($29)
+  addiu $29, 8*8
 
-  bnez  $12, console_write_init_ok
+  //
+  .set tmp, $2
+
+  // check init
+  lbu tmp, console_inited
+  bnez  tmp, console_write_init_ok
   nop
   jal init_console
   nop
 console_write_init_ok:
 
-  lw  $13, console_row
-  sll $13, 3
-  addiu $13, console_y
-  li  $12, console_x
+  // check if we need to scroll
+  lw  tmp, console_row
+  addiu tmp, 1
+  sw  tmp, console_row
+  addiu tmp, -console_height
 
-  jal text_blit
+  blez tmp, lines_ok
   nop
 
-  lw  $13, console_row
-  addiu $13, 1
-  li  $12, console_height
+  // scroll up
+  .set scroll_cur, $3
+  .set scroll_end, $4
+  la  scroll_cur, console_buffer+console_width+1
+  la  scroll_end, console_buffer+(console_width+1)*console_height-1
 
-  blt $13, $12, lines_ok
-  nop
-  li $13, console_height-1
+scroll_loop:
+  lbu tmp, (scroll_cur)
+  sb  tmp, -(console_width+1)(scroll_cur)
+  bne scroll_cur, scroll_end, scroll_loop
+  addiu scroll_cur, 1
+
+  li tmp, console_height
+  sw  tmp, console_row
 lines_ok:
-  sw  $13, console_row
 
-  addiu $29, -3*8
-  ld  $12, 0*8($29)
-  ld  $13, 1*8($29)
-  ld  $31, 2*8($29)
+  // find the row
+  .set dest, $3
+  lw  dest, console_row
+  addiu dest, -1
+  li  tmp, console_width+1
+  mult  tmp, dest
+  la    dest, console_buffer
+  mflo  tmp
+  addu  dest, tmp
+
+  // fill in the row in the console
+  bnez  digitlen, console_do_number
+  nop
+
+  // copy string
+  .set width_left, $4
+
+  li  width_left, console_width
+
+console_copy_loop:
+  lbu tmp, (message)
+  sb  tmp, (dest)
+  beqz tmp, console_string_copy_done
+  addiu width_left, -1
+  addiu message, 1
+  bnez  width_left, console_copy_loop
+  addiu dest, 1
+
+  // terminate in case of overflow
+  b console_string_copy_done
+  sb  $0, (dest)
+
+console_do_number:
+
+  // generate number string
+  move  $12, dest
+  jal number_to_string
+  nop
+
+console_string_copy_done:
+
+  addiu $29, -8*8
+  ld  $2, 5*8($29)
+  mtlo $2
+  ld  $2, 6*8($29)
+  mthi $2
+  ld  $2, 0*8($29)
+  ld  $3, 1*8($29)
+  ld  $4, 2*8($29)
+  ld  $12, 3*8($29)
+  ld  $13, 4*8($29)
+  ld  $31, 7*8($29)
 
   jr  $31
   nop
 
+// **** console_render
+
+  .globl console_render
+console_render:
+  .set rowy, $2
+  .set rows, $3
+  .set src, $4
+
+  sd  $2, 0*8($29)
+  sd  $3, 1*8($29)
+  sd  $4, 2*8($29)
+  sd  $31, 3*8($29)
+  addiu $29, 4*8
+
+  li  rowy, console_y
+  li  rows, console_height-1
+  la  src,  console_buffer
+
+render_row_loop:
+  move  $11, src
+  li    $12, console_x
+  move  $13, rowy
+
+  jal text_blit
+  nop
+
+  addiu rowy, 8
+  addiu src, console_width+1
+
+  bnez  rows, render_row_loop
+  addiu rows, -1
+
+  addiu $29, -4*8
+  ld  $2, 0*8($29)
+  ld  $3, 1*8($29)
+  ld  $4, 2*8($29)
+  ld  $31, 3*8($29)
+
+  jr  $31
+  nop
+
+// *** number to string
+  .globl number_to_string
+number_to_string:
+  /*
+    $10: digits
+    $11: number
+    $12: destination
+  */
+
+  .set digits, $10
+  .set number, $11
+  .set dest, $12
+
+  sd  $2, 0*8($29)
+  sd  $3, 1*8($29)
+
+  // 0x
+  li    tmp, 0x30
+  sb    tmp, (dest)
+  li    tmp, 0x78
+  sb    tmp, 1(dest)
+  addiu  dest, 2
+
+  // null terminate
+  addu  dest, digits
+  sb    $0, (dest)
+
+  addiu digits, -1
+
+  .set digit, $2
+digit_loop:
+  andi  digit, number, 0xf
+  srl   number, 4
+
+  .set char, $3
+  la    char, digit_chars
+  addu  char, digit
+
+  lb    char, (char)
+  addiu dest, -1
+  sb    char, (dest)
+
+  bnez  digitlen, digit_loop
+  addiu digitlen, -1
+
+  ld  $2, 0*8($29)
+  ld  $3, 1*8($29)
+
+  jr    $31
+  nop
 .data
-console_inited:
-  .byte 0
-  .align 4
-console_row:
-  .word 0
-
-.bss
-console_buffer:
-  .skip (console_width+1)*(console_height+3)  // +3 extra rows for "safety"
-
+digit_chars:
+  .string "0123456789abcdef"
 .text
+
+// *** text_blit
 
   .globl text_blit
 
 text_blit:
 /*
- $10 length if numeric, 0 if string
- $11 number if numeric, else pointer to null terminated string
+ $11 pointer to null terminated string
  $12 x
  $13 y
 */
 
-.set digitlen, $10
-.set number, $11
 .set message, $11
 .set xpos, $12
 .set ypos, $13
@@ -207,46 +384,16 @@ text_blit:
   sd  $4, 2*8($29)
   sd  $5, 3*8($29)
   sd  $6, 4*8($29)
+  sd  $7, 5*8($29)
   mflo $2
   sd  $2, 5*8($29)
   mfhi $2
-  sd  $2, 6*8($29)
-  addiu $29, 7*8
-
-  beqz  digitlen, text_string
-  nop
-
-  .set ptr, $2
-  // null terminate
-  la    ptr, text_buffer+2
-  addu  ptr, digitlen
-  sb    $0, (ptr)
-
-  addiu digitlen, -1
-
-  .set digit, $4
-digit_loop:
-  andi  digit, number, 0xf
-  srl   number, 4
-
-  .set char, $3
-  la    char, digit_chars
-  addu  char, digit
-
-  lb    char, (char)
-  addiu ptr, -1
-  sb    char, (ptr)
-
-  bnez  digitlen, digit_loop
-  addiu digitlen, -1
-
-  la    message, text_buffer
-
-  // no more use of digitlen ($10)
+  sd  $2, 7*8($29)
+  addiu $29, 8*8
 
 text_string:
 
-  .set tmp, $10
+  .set tmp, $2
   li    tmp, width
   mult  ypos, tmp // no more use of ypos ($13)
 
@@ -262,23 +409,23 @@ text_string:
 
 
 charloop:
-  .set fb_cur, $2
+  .set fb_cur, $3
   move  fb_cur, fb
 
   lbu   tmp, 0(message)
   beqz  tmp, end_charloop
-  .set linecnt, $3
+  .set linecnt, $4
   li    linecnt, 8-1   // 8 lines
 
-  .set bmp_ptr, $4
+  .set bmp_ptr, $5
   sll   bmp_ptr, tmp, 3
   addu  bmp_ptr, bmp
 
 lineloop:
-  .set bmp_line, $5
+  .set bmp_line, $6
   lbu   bmp_line, 0(bmp_ptr) // line bitmap
 
-  .set pixcnt, $6
+  .set pixcnt, $7
   li    pixcnt, 8-1   // 8 pixels
 
 pixloop:
@@ -304,11 +451,11 @@ black:
 
 end_charloop:
 
-  addiu $29, -7*8
+  addiu $29, -8*8
 
-  ld  $2, 5*8($29)
-  mtlo $2
   ld  $2, 6*8($29)
+  mtlo $2
+  ld  $2, 7*8($29)
   mthi $2
 
   ld  $2, 0*8($29)
@@ -316,11 +463,7 @@ end_charloop:
   ld  $4, 2*8($29)
   ld  $5, 3*8($29)
   ld  $6, 4*8($29)
+  ld  $7, 5*8($29)
   jr  $31
   nop
 
-.data
-digit_chars:
-  .string "0123456789abcdef"
-text_buffer:
-  .string "0x0123456701234567"
