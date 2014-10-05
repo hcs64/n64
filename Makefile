@@ -27,7 +27,7 @@ font.o: font.raw
 	$(CHKSUM64) $@
 
 %.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
+	$(OBJCOPY) -O binary --set-section-flag .pad=alloc,contents $< $@
 
 %.o: %.asm
 	cpp < $< | $(AS) -o $@

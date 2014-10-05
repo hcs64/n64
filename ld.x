@@ -3,11 +3,18 @@ SECTIONS {
 
 .text : {
   *(.init)
-  *(.text) 
-  *(.data) ;
-
-  . = 0x100000 ;
+  *(.text) ;
 }
+
+.data : {
+  *(.data) ;
+}
+
+rom_end = . ;
+.pad : {
+  . = 0x80100400 - rom_end ;
+}
+
 
 .bss : {
   *(.bss)

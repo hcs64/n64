@@ -173,7 +173,7 @@ controller_command:
   /* command ready */
   .byte 1
 
-.section .nocachebss
+.section .nocachebss, "", @nobits
   .p2align 6
 controller_response:
   .skip 64

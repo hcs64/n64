@@ -14,10 +14,10 @@ _init:
   nop
 
   // disable interrupts
-  mfc0  $3, $12
-  addiu $4, $0, 0xfffe
-  and   $3, $4
-  mtc0  $3, $12
+  mfc0  $2, $12
+  addiu $3, $0, 0xfffe
+  and   $2, $3
+  mtc0  $2, $12
 
   // stack
   la  $29, _stack
@@ -72,7 +72,8 @@ _init:
 .bss
   .p2align 8
 _stack: .skip 1024
-.section .nocachebss
+
+.section .nocachebss, "", @nobits
   .p2align 16
   .globl framebuffer
 framebuffer: .skip 320*240*2
