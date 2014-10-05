@@ -7,7 +7,7 @@ CHKSUM64=./bin/chksum64
 SFDRIVE=./bin/64drive_usb
 HEADER=header
 
-OBJECTS=test.o text.o init.o font.o control.o exception.o
+OBJECTS=test.o text.o init.o font.o control.o exception.o panic.o
 
 .PHONY: send clean clean-all 
 
@@ -30,7 +30,7 @@ font.o: font.raw
 	$(OBJCOPY) -O binary --set-section-flag .pad=alloc,contents $< $@
 
 %.o: %.asm
-	cpp < $< | $(AS) -o $@
+	cpp $< | $(AS) -o $@
 
 clean:
 	rm -f $(OBJECTS) test.bin test.elf

@@ -67,21 +67,12 @@ exception_handler:
   beqz  $3, just_an_interrupt
   nop
 
-  la $11, exception_message
-  la $12, 32
-  la $13, 32
-  jal text_blit
+  jal panic_screen
+  move  $10, $2
+
+panic_deadend:
+  j panic_deadend
   nop
-
-exception_deadend:
-  j exception_deadend
-  nop
-
-.data
-exception_message:
-  .string "!!! Exception !!!"
-
-.text
 
 just_an_interrupt:
 

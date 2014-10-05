@@ -33,6 +33,7 @@ refresh:
   nop
 
   li $6, 0xf800
+  //lw $7, 0xdeadbeef
   //div $6, $0
  
 green:
