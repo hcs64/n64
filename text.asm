@@ -12,86 +12,110 @@
  $13 y
 */
 
-//inputs and $2 through $8 are clobbered
+.set digitlen, $10
+.set number, $11
+.set message, $11
+.set xpos, $12
+.set ypos, $13
+
+
+//inputs and $2 through $6 are clobbered
 text_blit:
-  beqz  $10, text_string
+  beqz  digitlen, text_string
   nop
 
-  la    $2, text_buffer+2
-  addu  $2, $10
-  sb    $0, 0($2)
+  .set ptr, $2
+  // null terminate
+  la    ptr, text_buffer+2
+  addu  ptr, digitlen
+  sb    $0, (ptr)
 
-  addiu $10, -1
+  addiu digitlen, -1
 
+  .set digit, $4
 digit_loop:
-  andi  $4, $11, 0xf
-  srl   $11, 4
-  la    $3, digits
-  addu  $3, $4
+  andi  digit, number, 0xf
+  srl   number, 4
 
-  lb    $3, ($3)
-  addiu $2, -1
-  sb    $3, ($2)
+  .set char, $3
+  la    char, digit_chars
+  addu  char, digit
 
-  bnez  $10, digit_loop
-  addiu $10, -1
+  lb    char, (char)
+  addiu ptr, -1
+  sb    char, (ptr)
 
-  la    $11, text_buffer
+  bnez  digitlen, digit_loop
+  addiu digitlen, -1
+
+  la    message, text_buffer
+
+  // no more use of digitlen ($10)
 
 text_string:
 
-  li    $2, width
-  mult  $13,  $2
-  mflo  $13
-  addu  $13, $12
-  sll   $13, 1
-  la    $2, framebuffer
-  addu  $13, $2     // $13 is current framebuffer address
+  .set tmp, $10
+  li    tmp, width
+  mult  ypos, tmp // no more use of ypos ($13)
 
-  li    $12, 0xfffe // $12 is text color
-  la    $2, _binary_font_raw_start  // $2 is font bitmap
+  .set fb, $13
+  mflo  fb
+  addu  fb, xpos  // no more use of xpos ($12)
+  sll   fb, 1
+  la    tmp, framebuffer
+  addu  fb, tmp
+
+  .set bmp, $12
+  la    bmp, _binary_font_raw_start
 
 
 charloop:
-  move  $8, $13  // $14 is the current pixel of the character
+  .set fb_cur, $2
+  move  fb_cur, fb
 
-  lbu   $10, 0($11)
-  beqz  $10, end_charloop
-  li    $3, 8-1   // 8 lines
+  lbu   tmp, 0(message)
+  beqz  tmp, end_charloop
+  .set linecnt, $3
+  li    linecnt, 8-1   // 8 lines
 
-  sll   $4, $10, 3
-  addu  $4, $2
+  .set bmp_ptr, $4
+  sll   bmp_ptr, tmp, 3
+  addu  bmp_ptr, bmp
+
 lineloop:
-  lbu   $5, 0($4) // line bitmap
-  li    $6, 8-1   // 8 pixels
+  .set bmp_line, $5
+  lbu   bmp_line, 0(bmp_ptr) // line bitmap
+
+  .set pixcnt, $6
+  li    pixcnt, 8-1   // 8 pixels
 
 pixloop:
-  andi  $7, $5, 0x80
-  sll   $5, 1
-  beqz  $7, black
-  li    $7, 0
-  move  $7, $12
+  andi  tmp, bmp_line, 0x80
+  sll   bmp_line, 1
+  beqz  tmp, black
+  li    tmp, 0  // black background
+  li    tmp, 0xfffe // white foreground
 black:
-  sh    $7, 0($8)
-  addiu $8, 2
-  bnez  $6, pixloop
-  addiu $6, -1
+  sh    tmp, (fb_cur)
+  addiu fb_cur, 2
+  bnez  pixcnt, pixloop
+  addiu pixcnt, -1
 
-  addiu $8, -(8*2)+width*2
-  addiu $4, 1
-  bnez  $3, lineloop
-  addiu $3, -1
+  addiu fb_cur, -(8*2)+width*2  // next line of framebuffer
+  addiu bmp_ptr, 1  // next line of bitmap
+  bnez  linecnt, lineloop
+  addiu linecnt, -1
 
-  addiu $13, 8*2
+  addiu fb, 8*2
   b charloop
-  addiu $11, 1
+  addiu message, 1
 
 end_charloop:
   jr  $31
   nop
 
 .data
-digits:
+digit_chars:
   .string "0123456789abcdef"
 text_buffer:
   .string "0x01234567"
