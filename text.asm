@@ -74,7 +74,7 @@ console_write_string:
 
   .globl console_write_64
 console_write_64:
-  /* $11: string ptr */
+  /* $11: number */
 
   sd  $10, 0*8($29)
   sd  $31, 1*8($29)
@@ -94,7 +94,7 @@ console_write_64:
 
   .globl console_write_32
 console_write_32:
-  /* $11: string ptr */
+  /* $11: number */
 
   sd  $10, 0*8($29)
   sd  $31, 1*8($29)
@@ -114,7 +114,7 @@ console_write_32:
 
   .globl console_write_16
 console_write_16:
-  /* $11: string ptr */
+  /* $11: number */
 
   sd  $10, 0*8($29)
   sd  $31, 1*8($29)
@@ -134,7 +134,7 @@ console_write_16:
 
   .globl console_write_8
 console_write_8:
-  /* $11: string ptr */
+  /* $11: number */
 
   sd  $10, 0*8($29)
   sd  $31, 1*8($29)
