@@ -7,7 +7,7 @@ CHKSUM64=./bin/chksum64
 SFDRIVE=./bin/64drive_usb
 HEADER=header
 
-OBJECTS=test.o text.o init.o font.o control.o exception.o panic.o
+OBJECTS=test.o text.o init.o font.o control.o exception.o panic.o nes/cycle_cpu.o
 
 .PHONY: send clean clean-all 
 

@@ -4,14 +4,16 @@
   .globl _start
 
 _start:
+.data
+message:
+  .string "Hello, world!"
+message2:
+  .string "Hello, world again!!"
+.text
   la  $11, message
   jal console_write_string
   nop
 
-.data
-message2:
-  .string "Hello, world again!!"
-.text
   la  $11, message2
   jal console_write_string
   nop
@@ -20,13 +22,24 @@ message2:
   jal console_write_32
   nop
 
+  jal init_cpu
+  nop
+  jal run_cpu_cycle
+  nop
+  jal run_cpu_cycle
+  nop
+  jal run_cpu_cycle
+  nop
+
 //// main loop
 refresh:
+  // read controller buttons
   li $4, 0
   jal read_controller
   nop
   move $18, $4
 
+  // fill background
   li $6, 0x07c0
   srl $4, 16
   beq $4, $0, green
@@ -62,15 +75,12 @@ xloop:
   addiu $7, -1
 
 
+  // render joystick feedback
+
   li    $10, 0
   la    $11, message
   andi  $12, $18, 0xff00
   srl   $12, 8
-
-.data
-message:
-  .string "Hello, world!!"
-.text
 
   andi  $2, $12, 0x80
   beqz  $2, pos_x
@@ -94,37 +104,26 @@ pos_y:
   jal   text_blit
   nop
 
-
+  // render the console on top of everything else
   jal console_render
   nop
 
+  // framebuffer is now complete for this frame
   lw  $2, active_framebuffer
   sw  $2, ready_framebuffer
 
+  // poll controller for next time
   jal poll_controller
-  nop
-
-  mfc0  $11, $9
-  jal console_write_32
-  nop
-  lw    $11, frame_count
-  jal console_write_16
   nop
 
   lw $11, my_frame_count
   addiu $11, 1
   sw  $11, my_frame_count
-  jal console_write_16
-  nop
 
 .data
 my_frame_count:
   .word 0
 .text
-
-  //li  $2, 1
-  //div $2, $0
-
 
   // wait for that frame to be displayed
 ready_wait:
@@ -135,6 +134,7 @@ ready_wait:
   lw    $2, available_framebuffer
   sw    $2, active_framebuffer
 
+  // loop!
   b refresh
   nop
 
