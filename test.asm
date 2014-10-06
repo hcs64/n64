@@ -22,14 +22,80 @@ message2:
   jal console_write_32
   nop
 
+
+  jal init_ppu_address_space
+  nop
+  jal init_cpu_address_space
+  nop
+
   jal init_cpu
   nop
+
+  lw  $11, cpu_read_address_map+124
+  jal console_write_32
+  nop
+  // reset LO
   jal run_cpu_cycle
   nop
+  // reset HI
   jal run_cpu_cycle
   nop
+  // fetch op 0x78
   jal run_cpu_cycle
   nop
+  // exec op 0x78
+  jal run_cpu_cycle
+  nop
+  // fetch op 0xD8
+  jal run_cpu_cycle
+  nop
+  // exec op 0xD8
+  jal run_cpu_cycle
+  nop
+  // fetch op 0xA9
+  jal run_cpu_cycle
+  nop
+  // exec op 0xA9 (fetch immed)
+  jal run_cpu_cycle
+  nop
+  // fetch op 0x8D
+  jal run_cpu_cycle
+  nop
+  // 0x8D cycle 1 (fetch lo)
+  jal run_cpu_cycle
+  nop
+  // 0x8D cycle 2 (fetch hi)
+  jal run_cpu_cycle
+  nop
+  // 0x8D cycle 3 (store A)
+  jal run_cpu_cycle
+  nop
+  // fetch 0xA2
+  jal run_cpu_cycle
+  nop
+  // exec 0xA2 (LDX Imm)
+  jal run_cpu_cycle
+  nop
+  // fetch 0x9A (TXS)
+  jal run_cpu_cycle
+  nop
+  // exec 0x9A
+  jal run_cpu_cycle
+  nop
+  // fetch 0xAD (LDA Abs)
+  jal run_cpu_cycle
+  nop
+  // 0xAD cycle 1 (fetch lo)
+  jal run_cpu_cycle
+  nop
+  // 0xAD cycle 2 (fetch hi)
+  jal run_cpu_cycle
+  nop
+
+  jal console_write_8
+  move $11, $22
+  jal console_write_8
+  move $11, $21
 
 //// main loop
 refresh:

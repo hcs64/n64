@@ -7,7 +7,7 @@ CHKSUM64=./bin/chksum64
 SFDRIVE=./bin/64drive_usb
 HEADER=header
 
-OBJECTS=test.o text.o init.o font.o control.o exception.o panic.o nes/cycle_cpu.o
+OBJECTS=test.o text.o init.o font.o control.o exception.o panic.o nes/cycle_cpu.o nes/cpu_address.o nes/ppu_address.o nes/chr.o nes/prg.o
 
 .PHONY: send clean clean-all 
 
@@ -20,6 +20,12 @@ send: test.n64
 	sudo $(SFDRIVE) -l test.n64
 
 font.o: font.raw
+	$(OBJCOPY) -I binary -O elf32-bigmips -B mips:4000 $< $@
+
+nes/chr.o: nes/chr.raw
+	$(OBJCOPY) -I binary -O elf32-bigmips -B mips:4000 $< $@
+
+nes/prg.o: nes/prg.raw
 	$(OBJCOPY) -I binary -O elf32-bigmips -B mips:4000 $< $@
 
 %.n64: %.bin

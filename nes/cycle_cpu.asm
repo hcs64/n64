@@ -14,10 +14,16 @@
 .set TMP,   $19
 .set cpu_next, $18
 .set cpu_next_op, $17
+.set cpu_read_pages, $16
+.set cpu_write_pages, $15
+.set cpu_op_list, $14
 
   .globl init_cpu
 init_cpu:
-  la  cpu_next, opcode_to_atomic+32*0xD8
+  la  cpu_next, reset_atomic
+  la  cpu_read_pages, cpu_read_address_map
+  la  cpu_write_pages, cpu_write_address_map
+  la  cpu_op_list, opcode_to_atomic
   jr  ra
   lw  cpu_next_op, (cpu_next)
 
@@ -35,15 +41,126 @@ run_cpu_cycle:
   jr  ra
   nop
 
+#define read_an_addr(addr_reg, dest_reg) \
+  srl   $3, addr_reg, 11  ;\
+  sll   $3, 2         ;\
+  addu  $3, cpu_read_pages;\
+  lw    $3, ($3)      ;\
+  bltz  $3, 1f        ;\
+  lui   $4, 0x8000    ;\
+  or    $3, $4        ;\
+  move  $4, ra        ;\
+  jalr  $3            ;\
+  nop                 ;\
+  move  ra, $4        ;\
+  b     2f            ;\
+  move  dest_reg, $10 ;\
+1:                    ;\
+  addu  $3, addr_reg  ;\
+  lbu   dest_reg, ($3);\
+2:
+
+#define read_addr(reg) \
+  sll   $2, ADR_HI, 8  ;\
+  or    $2, ADR_LO     ;\
+  read_an_addr($2, reg)
+
+#define write_an_addr(addr_reg, src_reg) \
+  srl   $3, addr_reg, 11 ;\
+  sll   $3, 2         ;\
+  addu  $3, cpu_write_pages ;\
+  lw    $3, ($3)      ;\
+  bltz  $3, 1f        ;\
+  lui   $4, 0x8000    ;\
+  or    $3, $4        ;\
+  move  $4, ra        ;\
+  move  $11, addr_reg ;\
+  jalr  $3            ;\
+  move  $10, src_reg  ;\
+  b     2f            ;\
+  move  ra, $4        ;\
+1:                    ;\
+  addu  $3, addr_reg  ;\
+  sb    src_reg, ($3) ;\
+2:
+
+#define write_addr(reg) \
+  sll   $2, ADR_HI, 8  ;\
+  or    $2, ADR_LO     ;\
+  write_an_addr($2, reg)
+
 // atomic operations
 CLD:
   jr  ra
   lw  cpu_next_op, (cpu_next)
 
-fetch_next:
-  la  cpu_next, opcode_to_atomic+32*0xEE
+SEI:
   jr  ra
   lw  cpu_next_op, (cpu_next)
+
+LDA_Imm:
+  read_an_addr(PC, A)
+  addiu PC, 1
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+LDA_Abs:
+  read_addr(A)
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+LDX_Imm:
+  read_an_addr(PC, X)
+  addiu PC, 1
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+STA_Abs:
+  write_addr(A)
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+TXS:
+  move  SP, X
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+fetch_next:
+  read_an_addr(PC, cpu_next)
+  addiu PC, 1
+  sll cpu_next, 5
+  addu cpu_next, cpu_op_list
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+fetch_adr_lo:
+  read_an_addr(PC, ADR_LO)
+  addiu PC, 1
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+fetch_adr_hi:
+  read_an_addr(PC, ADR_HI)
+  addiu PC, 1
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+read_resetL:
+  li  $2, 0xfffc
+  read_an_addr($2, ADR_LO)
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
+read_resetH:
+  li  $2, 0xfffd
+  read_an_addr($2, ADR_HI)
+
+  sll PC, ADR_HI, 8
+  or  PC, ADR_LO
+
+  jr  ra
+  lw  cpu_next_op, (cpu_next)
+
 
 unsupported_opcode:
 .data
@@ -77,6 +194,9 @@ unsupported_deadend:
 #define UNSUPPORTED  \
   .word unsupported_opcode;\
   .p2align 5
+
+reset_atomic:
+  .word read_resetL, read_resetH, fetch_next
 
   .p2align 5
 opcode_to_atomic:
@@ -441,7 +561,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0x78: SEI
-  UNSUPPORTED
+  .word SEI, fetch_next
+  .p2align 5
 
   // 0x79: ADC Abs, Y
   UNSUPPORTED
@@ -504,7 +625,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0x8D: STA Abs
-  UNSUPPORTED
+  .word fetch_adr_lo, fetch_adr_hi, STA_Abs, fetch_next
+  .p2align 5
 
   // 0x8E: STX Abs
   UNSUPPORTED
@@ -543,7 +665,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0x9A: TXS
-  UNSUPPORTED
+  .word TXS, fetch_next
+  .p2align 5
 
   // 0x9B:
   UNSUPPORTED
@@ -567,7 +690,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0xA2: LDX Immed
-  UNSUPPORTED
+  .word LDX_Imm, fetch_next
+  .p2align 5
 
   // 0xA3:
   UNSUPPORTED
@@ -588,7 +712,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0xA9: LDA Imm
-  UNSUPPORTED
+  .word LDA_Imm, fetch_next
+  .p2align 5
 
   // 0xAA: TAX
   UNSUPPORTED
@@ -600,7 +725,8 @@ opcode_to_atomic:
   UNSUPPORTED
 
   // 0xAD: LDA Abs
-  UNSUPPORTED
+  .word fetch_adr_lo, fetch_adr_hi, LDA_Abs, fetch_next
+  .p2align 5
 
   // 0xAE: LDX Abs
   UNSUPPORTED
